@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="400" height="260" xmlns:media="com.news21.asu.media.*">
+	<mx:Script>
+		<![CDATA[
+			import mx.events.CuePointEvent;
+			import mx.utils.ObjectUtil;
+			import flash.utils.Timer;
+    		import flash.events.TimerEvent;
+			
+			[Bindable][Embed(source="assets/images/flash.png")]
+			public var flashicon:Class;
+			
+			[Bindable][Embed(source="assets/images/html.png")]
+			public var htmlicon:Class;
+			
+			[Bindable][Embed(source="assets/images/image.png")]
+			public var imageicon:Class;
+			
+			[Bindable][Embed(source="assets/images/link.png")]
+			public var linkicon:Class;
+								
+			[Bindable][Embed(source="assets/images/film.png")]
+			public var videoicon:Class;
+			
+			public function initCuePointXML(cp:XML):void
+			{
+				var a:Array = new Array();
+				var o:Object;
+				var a2:Array = new Array();
+				var o2:Object;
+				
+				for (var i:int = 0; i < cp.CuePoint.length(); i++) {
+					o = new Object();
+					o.name = cp.CuePoint[i].Name;
+					o.time = Number(cp.CuePoint[i].Time);
+					o.type = cp.CuePoint[i].Type;
+					a2 = new Array();
+					//trace(ObjectUtil.toString(cp.CuePoint[i].Parameters.Parameter.length()));
+					for (var j:int = 0; j < cp.CuePoint[i].Parameters.Parameter.length(); j++) {
+						o2 = new Object();
+						o2.name = cp.CuePoint[i].Parameters.Parameter[j].Name;
+						o2.value = cp.CuePoint[i].Parameters.Parameter[j].Value;
+						a2.push(o2);
+					}
+					o.parameters = a2;
+					a.push(o);
+				}
+				videoSource.cuePoints = [];
+				
+				videoSource.cuePointManager.removeAllCuePoints();
+				videoSource.cuePoints = a;
+				//videoSource.cuePoints = [{'name':'cp_3','time':3,'type':'event','parameters':[{'name':'asset_type','value':'image'},{'name':'duration','value':2}]},{'name':'cp_6','time':6,'type':'event','parameters':[{'name':'asset_type','value':'link'},{'name':'duration','value':2}]},{'name':'cp_6','time':13,'type':'event','parameters':[{'name':'asset_type','value':'html'},{'name':'duration','value':2}]},{'name':'cp_6','time':16,'type':'event','parameters':[{'name':'asset_type','value':'flash'},{'name':'duration','value':2}]}];
+			}
+			
+			private var _currentAnnotation:Object;
+			
+			public function annotationTimerHandler(event:TimerEvent):void {
+				annotationIcon.visible = false;
+	        }
+
+			
+			public function showAnnotation(e:CuePointEvent):void
+			{
+				var atype:String;
+				var aparam:Object = new Object();
+				var useTimer:Boolean = false;
+				//trace('announcement '+e.cuePointTime);
+				for(var i:int=0;i<videoSource.cuePoints.length;i++)
+				{
+					if(videoSource.cuePoints[i].time == e.cuePointTime)
+					{
+						//trace('cp match');
+						_currentAnnotation = videoSource.cuePoints[i];
+						for(var j:* in _currentAnnotation.parameters)
+						{
+							aparam[_currentAnnotation.parameters[j].name] = _currentAnnotation.parameters[j].value;
+						}
+						//trace('aparam '+ObjectUtil.toString(aparam));
+						switch(String(aparam['asset_type']))
+						{
+							case "flash":
+							//trace('f');
+							annotationIcon.visible = true;
+							annotationIcon.source = flashicon;
+							useTimer = true;
+							break;
+							case "html":
+							//trace('h');
+							annotationIcon.visible = true;
+							annotationIcon.source = htmlicon;
+							useTimer = true;
+							break;
+							case "image":
+							//trace('i');
+							annotationIcon.visible = true;
+							annotationIcon.source = imageicon;
+							useTimer = true;
+							break;
+							case "link":
+							//trace('l');
+							annotationIcon.visible = true;
+							annotationIcon.source = linkicon;
+							useTimer = true;
+							break;
+							case "video":
+							//trace('l');
+							annotationIcon.visible = true;
+							annotationIcon.source = videoicon;
+							useTimer = true;
+							break;
+						}
+						
+						if(useTimer)
+						{
+							var dint:int = int(Number(aparam['duration']))*1000;
+							var myTimer:Timer = new Timer(dint, 1);
+	            			myTimer.addEventListener("timer", annotationTimerHandler);
+				            myTimer.start();
+						}
+						
+						break;
+					}
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:VBox>
+		<mx:VideoDisplay id="videoSource" cuePointManagerClass="mx.controls.videoClasses.CuePointManager" 
+			width="400" height="225" 
+			bufferTime="60"
+			autoBandWidthDetection="true" 
+			maintainAspectRatio="true" 			 
+			volume="{videoControls.volumeSlider.value/100}"
+			autoPlay="false" cuePoint="showAnnotation(event)" 
+			autoRewind="true"  x="0" y="0"/>
+		<media:VideoController id="videoControls" player="{videoSource}" sliderWidth="295" x="6" y="226" width="388" height="26"/>
+	</mx:VBox>
+	
+	<mx:Image id="annotationIcon" x="5" y="5" />
+	
+</mx:Canvas>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="498" height="284" xmlns:vo="com.news21.asu.kue.model.vo.*">
+	<mx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			import com.news21.asu.kue.model.vo.Asset;
+			import com.news21.asu.kue.model.vo.CuePoint;
+			
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var currentVideoTime:Number = 0;
+			
+			[Bindable]
+			public var currentID:Number = -1;
+			
+			private var _currentAsset:Asset;
+			private var _currentCuePoint:CuePoint;
+			public static const EVENT_CLOSE_POPUP:String = "Close_Popup";
+			public static const EVENT_SAVE_CUEPOINT:String = "Save_CuePoint";
+			public static const EVENT_DELETE_CUEPOINT:String = "Delete_CuePoint";
+			public static const EVENT_ADJUST_DURATION:String = "Adjust_Duration";
+			public static const EVENT_ADJUST_ENDTIME:String = "Adjust_EndTime";
+			
+			[Bindable]
+            public var ctypes:ArrayCollection = new ArrayCollection([ {label:'event'},{label:'navigation'} ]);
+
+		]]>
+	</mx:Script>
+	
+	<vo:Asset id="assetvo" title="{ctitle.text}" link="{clink.text}" />
+	<vo:CuePoint id="cuepointvo" cuepoint_id="{currentID}" duration="{cduration.value}" time="{cstarttime.value}"  />
+	
+	<mx:Button label="Delete" id="deletebtn" visible="false" click="dispatchEvent(new Event(EVENT_DELETE_CUEPOINT, true))"  x="342.5" y="247"/>
+	<mx:Button label="Cancel" click="dispatchEvent(new Event(EVENT_CLOSE_POPUP, true))"  x="282.5" y="247"/>
+	<mx:Button label="Save" click="dispatchEvent(new Event(EVENT_SAVE_CUEPOINT, true))"  x="225.5" y="247"/>
+	
+	<mx:Form x="21.5" y="23">
+		<mx:FormHeading label="Cue Point : Link"/>
+		<mx:FormItem label="Type :">
+			<mx:ComboBox id="ctype" dataProvider="{ctypes}"></mx:ComboBox>
+		</mx:FormItem>
+		<mx:FormItem label="Title :">
+			<mx:TextInput id="ctitle" />
+		</mx:FormItem>
+		<mx:FormItem label="Start / Duration / End Time :">
+			<mx:HBox width="100%">
+				<mx:NumericStepper id="cstarttime" value="{currentVideoTime}" stepSize="1" minimum="0" maximum="7200" focusOut="dispatchEvent(new Event(EVENT_ADJUST_DURATION, true))" />
+				<mx:NumericStepper id="cduration" stepSize="1" minimum="0" maximum="7200" focusOut="dispatchEvent(new Event(EVENT_ADJUST_ENDTIME, true))" />
+				<mx:NumericStepper id="cendtime" stepSize="1" minimum="0" maximum="7200" focusOut="dispatchEvent(new Event(EVENT_ADJUST_DURATION, true))" />
+			</mx:HBox>
+		</mx:FormItem>
+		<mx:FormItem label="Link :">
+			<mx:TextInput id="clink"/>
+		</mx:FormItem>
+		<mx:FormItem label="Event Effects :">
+			<mx:VBox width="100%" height="100%">
+				<mx:HBox width="100%">
+					<mx:CheckBox id="ceminify" label="Minify Video"/>
+					<mx:CheckBox id="cepauseduration" label="Pause For Duration"/>
+				</mx:HBox>
+				<mx:HBox width="100%">
+					<mx:CheckBox id="cepause" label="Pause Video"/>
+				</mx:HBox>
+			</mx:VBox>
+		</mx:FormItem>
+	</mx:Form>
+</mx:TitleWindow>

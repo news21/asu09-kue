@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	creationComplete="initPlayer(event)"	
+	minWidth="160" minHeight="30"
+	horizontalScrollPolicy="off" 
+	verticalScrollPolicy="off">
+				
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.VideoDisplay;		
+	    	import mx.controls.Alert;
+			import mx.controls.Menu;	 		
+	    	import mx.events.MenuEvent;
+	    	import mx.core.IFlexDisplayObject;    
+			import mx.collections.XMLListCollection;   		
+		 	import mx.managers.PopUpManager;
+	      	import flash.display.StageDisplayState;
+	      
+	      	import mx.events.SliderEvent;
+	      	import mx.controls.sliderClasses.Slider;
+	      
+			import flash.utils.Timer;
+			import flash.events.TimerEvent;
+	      		
+	  		import caurina.transitions.Tweener;
+			
+			import mx.binding.utils.*;
+			
+			public var playerBindings:ChangeWatcher;
+			
+			
+			[Bindable]
+			public var url:String;
+			  
+			[Embed(source="assets/images/player/play.png")]
+			[Bindable]
+			public var playIconCls:Class;
+			
+			[Embed(source="assets/images/player/pause.png")]
+			[Bindable]
+			public var pauseIconCls:Class;
+			
+			[Embed(source="assets/images/player/sound16.png")]
+			[Bindable]
+			public var soundIconCls:Class;
+			
+			[Embed(source="assets/images/player/mute16.png")]
+			[Bindable]
+			public var muteIconCls:Class;
+			
+			[Bindable]
+			public var player:VideoDisplay;
+	
+			private function initPlayer(event:Event):void 
+			{
+				playerBindings = BindingUtils.bindSetter(changeBtnStyle,player,'playing');
+				//trackSlider.width = (this.width * .9);
+			}
+	
+				
+			public function togglePlay():void
+			{
+				if (!player.playing)
+				{
+					play();
+				}
+				else
+				{
+					pause();
+				}
+			}
+			
+			public function play(position:Number = -1):void
+			{
+				if (position >= 0)
+				{
+					player.playheadTime = position;
+				}
+				player.play();
+				playButton.toolTip = "Pause";
+				playButton.setStyle("icon", pauseIconCls);
+				playButton.selected = true;		
+			}
+				
+			public function pause():void
+			{
+				if (player.playing)
+				{
+					player.pause();
+				}					
+				playButton.toolTip = "Play";
+				playButton.setStyle("icon", playIconCls);													
+			}
+			
+			public function changeBtnStyle( event : * = null ):void {
+				if(!event) {
+					playButton.toolTip = "Play";
+					playButton.setStyle("icon", playIconCls);	
+					playButton.selected = true;	
+				} else {
+					playButton.toolTip = "Pause";
+					playButton.setStyle("icon", pauseIconCls);
+					playButton.selected = true;	
+				}
+			}
+				
+			public function stop():void
+			{
+				playButton.selected = false;
+				player.stop();
+				positionLabel.text = "00:00 / 00:00";
+				trackSlider.value = 0;
+				
+			}
+			
+			private function seek(event:SliderEvent):void
+			{
+				play(event.value);
+				trackSlider.toolTip = positionText(event.value);
+			}
+			
+			private function updatePosition(event:SliderEvent):void
+			{
+				positionLabel.text = positionText(event.value)+" / "+positionText(player.totalTime);				
+			}
+			
+			private function position(value:Number):String
+			{
+				return positionText(trackSlider.value);
+			}
+	    
+	    	private function positionText(seconds:Number):String
+	    	{
+	    		var min:Number = Math.floor(seconds / 60);
+				 	var sec:Number = Math.floor(seconds % 60);
+				 	if (isNaN(min) || isNaN(sec))
+				 	{
+				 		return "00:00";
+				 	}
+				  return min + ":" + (sec < 10 ? "0" + sec:sec);
+	    	}
+				
+			private function toggleSound():void
+			{				
+				if (muteButton.selected)
+				{
+					player.volume = 0;				
+					muteButton.toolTip = "Sound";
+					muteButton.setStyle("icon", muteIconCls);	
+				}
+				else
+				{
+					player.volume = (volumeSlider.value/100);				
+					muteButton.toolTip =  "Mute";
+					muteButton.setStyle("icon", soundIconCls);
+				}
+			}
+						
+			public function toggleViewMode():void
+			{
+				/*
+				var videoWidth:uint = player.videoWidth;
+				var videoHeight:uint = player.videoHeight;
+				var barHeight:uint = trackBox.height + 5; 
+				if (viewModeButton.selected )
+				{										
+					Tweener.addTween(this, {width: videoWidth*2 + 10, 
+						height: videoHeight*2 + barHeight, time: 3});
+					Tweener.addTween(this.player, 
+						{width: player.width*2, height: player.height*2, time: 3}); 
+				}
+				else
+				{
+					Tweener.addTween(this, {width: videoWidth + 10, 
+						height: videoHeight + barHeight, time: 3});
+					Tweener.addTween(this.player, 
+						{width: player.width/2, height: player.height/2, time: 3}); 
+				}
+				*/
+			}
+						
+			private var _autoPlay:Boolean = false;
+			[Bindable]
+			public function get autoPlay():Boolean
+			{
+				return _autoPlay;
+			}			
+			public function set autoPlay(auto:Boolean):void
+			{
+				_autoPlay = auto;
+			}
+			
+			private var _sliderWidth:int = 200;
+			[Bindable]
+			public function get sliderWidth():int
+			{
+				return _sliderWidth;
+			}	
+			public function set sliderWidth(sw:int):void
+			{
+				_sliderWidth = sw;
+			}
+			
+			private var _showFullScreen:Boolean = false;
+			[Bindable]
+			public function get showFullScreen():Boolean
+			{
+				return _showFullScreen;
+			}	
+			public function set showFullScreen(sfs:Boolean):void
+			{
+				_showFullScreen = sfs;
+			}
+			
+			private var _showVolumeControls:Boolean = false;
+			[Bindable]
+			public function get showVolumeControls():Boolean
+			{
+				return _showVolumeControls;
+			}	
+			public function set showVolumeControls(svc:Boolean):void
+			{
+				_showVolumeControls = svc;
+			}
+		]]>
+	</mx:Script>
+
+		<mx:HBox id="trackBox" horizontalGap="5" verticalAlign="middle">
+			
+			<mx:Button id="playButton" click="togglePlay()"
+				toggle="true" toolTip="Play" 
+				width="54" height="28" styleName="playButton" 
+				icon="@Embed(source='assets/images/player/play.png')" />
+			
+			<mx:HBox id="scrubberBox" width="600" height="37" verticalAlign="middle" styleName="scrubberBackground" horizontalGap="2">
+				
+				<mx:HSlider id="trackSlider" width="{sliderWidth}" 
+					allowTrackClick="true" showTrackHighlight="true" 
+					liveDragging="false"
+					snapInterval="1" tickInterval="60" 
+					dataTipPlacement="top" showDataTip="false"
+					dataTipFormatFunction="position" 
+					minimum="0" maximum="{player.totalTime}" 
+					value="{player.playheadTime}" 
+					thumbPress="player.pause()"
+					thumbDrag="updatePosition(event)"
+					thumbRelease="seek(event)" />
+				
+				<mx:Label id="positionLabel" text="{positionText(player.playheadTime)} / {positionText(player.totalTime)}"/>
+					
+								
+				<mx:Button id="muteButton" click="toggleSound()"
+					toggle="true" toolTip="Mute" 
+					width="16" height="16"
+					icon="@Embed(source='assets/images/player/sound16.png')" visible="{showVolumeControls}" />
+					 		
+				<mx:HSlider id="volumeSlider" value="50"
+					liveDragging="true" dataTipPrecision="0"
+					minimum="0" maximum="100" width="50" visible="{showVolumeControls}" />
+	
+				<mx:Button id="viewModeButton" visible="{showFullScreen}" click="toggleViewMode()" toggle="true"
+					toolTip="Resize"	
+					width="16" height="16"
+					icon="@Embed(source='assets/images/player/view.png')" />
+				
+			</mx:HBox>				
+		</mx:HBox>
+		
+				
+</mx:Canvas>

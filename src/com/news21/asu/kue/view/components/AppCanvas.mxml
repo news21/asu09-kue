@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" horizontalScrollPolicy="off" verticalScrollPolicy="off" width="820" height="630" xmlns:media="com.news21.asu.media.*" xmlns:components="com.news21.asu.kue.view.components.*">
+	<mx:Script>
+		<![CDATA[
+		import com.news21.asu.kue.ApplicationFacade;
+		
+		
+		public static const CPTYPE_FLASH:String = "Flash";
+		public static const CPTYPE_IMAGE:String = "Image";
+		public static const CPTYPE_HTML:String = "Html";
+		public static const CPTYPE_LINK:String = "Link";
+		public static const CPTYPE_VIDEO:String = "Video";
+		public static const PRIMARY_ASSET:String = "Main Video";
+		
+		public static const ATYPE_SWF:String = "swf";
+		public static const ATYPE_JPG:String = "jpg";
+		public static const ATYPE_PNG:String = "png";
+		public static const ATYPE_GIF:String = "gif";
+		public static const ATYPE_FLV:String = "flv";
+		
+		]]>
+	</mx:Script>
+	
+	<media:KuePlayer id="kuePlayer" width="720" height="405" y="5" horizontalCenter="0"/>
+
+	<mx:HBox y="417" horizontalCenter="0">
+		<mx:Button icon="@Embed('assets/images/flash.png')" click="dispatchEvent(new Event(ApplicationFacade.SHOW_FLASH, true))" width="43" height="20"/>
+		<mx:Button icon="@Embed('assets/images/html.png')" click="dispatchEvent(new Event(ApplicationFacade.SHOW_HTML, true))" width="37" height="20"/>
+		<mx:Button icon="@Embed('assets/images/image.png')" click="dispatchEvent(new Event(ApplicationFacade.SHOW_IMAGE, true))" width="35" height="20"/>
+		<mx:Button icon="@Embed('assets/images/link.png')" click="dispatchEvent(new Event(ApplicationFacade.SHOW_LINK, true))" width="30" height="20"/>
+		<mx:Button icon="@Embed('assets/images/film.png')" click="dispatchEvent(new Event(ApplicationFacade.SHOW_VIDEO, true))" width="37" height="20"/>
+	</mx:HBox>
+	
+	<mx:DataGrid id="cuepointDG" x="0" y="301" width="329" height="259" visible="false" sortableColumns="false" click="dispatchEvent(new Event(ApplicationFacade.EDIT_CUEPOINT, true))">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Asset" width="40">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:HBox width="100%" horizontalAlign="center" horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="updateImage()" dataChange="updateImage()">
+							<mx:Script>
+								<![CDATA[
+									[Bindable][Embed(source="assets/images/flash.png")]
+									public var flashicon:Class;
+									
+									[Bindable][Embed(source="assets/images/html.png")]
+									public var htmlicon:Class;
+									
+									[Bindable][Embed(source="assets/images/image.png")]
+									public var imageicon:Class;
+									
+									[Bindable][Embed(source="assets/images/link.png")]
+									public var linkicon:Class;
+									
+									[Bindable][Embed(source="assets/images/film.png")]
+									public var videoicon:Class;
+									
+									public function updateImage():void
+									{
+										switch(data.asset)
+										{
+											case "flash":
+											typeimage.source = flashicon;
+											break;
+											case "html":
+											typeimage.source = htmlicon;
+											break;
+											case "image":
+											typeimage.source = imageicon;
+											break;
+											case "link":
+											typeimage.source = linkicon;
+											break;
+											case "video":
+											typeimage.source = videoicon;
+											break;
+										}
+									}
+								]]>
+							</mx:Script>
+							<mx:Image id="typeimage" />
+						</mx:HBox>
+					</mx:Component>
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Time" dataField="time"/>
+			<mx:DataGridColumn headerText="Duration" dataField="duration"/>
+			<mx:DataGridColumn headerText="Name" dataField="name"/>
+			<mx:DataGridColumn headerText="Type" dataField="type"/>
+		</mx:columns>
+	</mx:DataGrid>
+	
+	<components:VideoTimeline id="vtimeline" y="444" width="720" height="116" horizontalCenter="0"/>
+	<media:VideoController id="scrubberVideoControls" player="{kuePlayer.videoSource}" sliderWidth="365" y="563" width="456" height="29" horizontalCenter="0"/>
+	
+	<mx:Button icon="@Embed('assets/images/compress.png')" click="dispatchEvent(new Event(ApplicationFacade.EXPORT_PROJECT, true))" label="Save &amp; Zip Project" right="5" bottom="5"/>
+	
+	
+</mx:Canvas>

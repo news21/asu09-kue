@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="400" height="300" xmlns:vo="com.news21.asu.kue.model.vo.*">
+	<mx:Script>
+		<![CDATA[
+			import com.news21.asu.kue.ApplicationFacade;
+			import com.news21.asu.kue.model.vo.Project;
+			
+			[Bindable]
+			public var currentProject:Project;	
+			
+			public static const EVENT_SELECT_PA:String = "Select_PA";
+			public static const EVENT_CREATE_NEW_PROJECT:String = "Create";
+			public static const EVENT_OPEN_EXISTING_PROJECT:String = "Open";
+		]]>
+	</mx:Script>
+	
+	<vo:Project id="projectvo" description="{pdescription.text}" modified_by="{pauthor.text}" name="{pname.text}" />
+	
+	
+        <mx:Form x="51" y="20">
+        	<mx:FormHeading label="Create A New Project"/>
+        	<mx:FormItem label="Project Name:" required="true">
+        		<mx:TextInput id="pname" text="{currentProject.name}"/>
+        	</mx:FormItem>
+        	<mx:FormItem label="Author :" required="true">
+        		<mx:TextInput id="pauthor" text="{currentProject.modified_by}"/>
+        	</mx:FormItem>
+        	<mx:FormItem label="Short Description :" required="true">
+        		<mx:TextArea id="pdescription" text="{currentProject.description}"/>
+        	</mx:FormItem>
+        	<mx:FormItem label="Main Video (.flv) :" required="true">
+        		<mx:Button id="paselectbtn" label="Select A File ..." click="dispatchEvent(new Event(EVENT_SELECT_PA, true))" />
+        	</mx:FormItem>
+        	<mx:FormItem label=" " width="274">
+        		<mx:Button id="newprojectbtn" label="Create New Project" enabled="false" click="dispatchEvent(new Event(EVENT_CREATE_NEW_PROJECT, true))"  textAlign="center"/>
+        	</mx:FormItem>
+        </mx:Form>
+
+	<mx:Button label="Open Existing Project" click="dispatchEvent(new Event(EVENT_OPEN_EXISTING_PROJECT, true))"  x="135" y="256"/>
+	<mx:HRule x="51" y="240" width="298"/>
+</mx:TitleWindow>

@@ -1,0 +1,23 @@
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:view="com.news21.asu.kue.view.components.*"	
+	layout="absolute" 
+	width="820"
+	height="630"
+	backgroundColor="#FFFFFF" 
+	applicationComplete="facade.startup(this)">
+	
+	<mx:Style source="/assets/skins/undefinedskin/css/skinPreview.css/"/>
+	
+	<mx:Script>
+		<![CDATA[
+			import com.news21.asu.kue.ApplicationFacade;
+					
+			private var facade:ApplicationFacade = ApplicationFacade.getInstance();
+			
+								
+		]]>
+	</mx:Script>
+
+	<view:AppCanvas id="acanvas"/>
+
+</mx:Application>

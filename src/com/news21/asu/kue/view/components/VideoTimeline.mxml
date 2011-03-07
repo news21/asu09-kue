@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Image;
+			import mx.graphics.codec.JPEGEncoder;
+			import mx.core.UIComponent;
+			import mx.graphics.ImageSnapshot;
+			import mx.events.MetadataEvent;
+			import mx.events.VideoEvent;
+			
+			private var _interval:int = 5;
+			private var _videoLength:int = 0;
+			private var _snapsArray:Array = new Array();
+			private var _firstSkipped:Boolean = false;
+			private var _i:Number = 0;
+			
+			public function initTimeline(mainVideoURL:String):void {
+				videoD.addEventListener(MetadataEvent.METADATA_RECEIVED, configSnapshots);
+				videoD.addEventListener(VideoEvent.STATE_CHANGE, stateChanged);
+				videoD.source=mainVideoURL;
+				videoD.load();
+			}
+			
+			private function configSnapshots(e:MetadataEvent):void 
+			{ 
+				_videoLength = Math.floor(Number(e.currentTarget.totalTime));
+				
+				if(_videoLength > 1200) // if greater than 20 mins use 30 second interval
+					_interval = 30;
+				else if(_videoLength > 600) // if greater than 10 mins use 10 second interval
+					_interval = 10;
+				
+				while (_i < _videoLength)
+				{
+					videoD.playheadTime = _i;
+					//trace(i)
+					_i = _i+_interval;
+				}
+			}
+			
+			private function stateChanged(e:VideoEvent):void
+			{
+				if(e.stateResponsive) {
+					
+					if(_firstSkipped) {
+						//trace(videoD.playheadTime);
+						takeSnap();
+					} else {
+						_firstSkipped = true;
+					}
+					
+					checkIfDone();
+				}
+			}
+			
+			private function takeSnap():void 
+			{ 
+				var nbd:BitmapData = ImageSnapshot.captureBitmapData(videoD);
+				var ni:Image = new Image();
+				ni.source = new Bitmap(nbd);
+				snaps.addChild(ni);
+			}
+			
+			private function checkIfDone():void
+			{
+				var frames:int = Math.floor(Number( _videoLength / _interval )) + 1;
+				if(snaps.getChildren().length == frames)
+					trace('done');
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:VideoDisplay visible="false" width="160" height="90" id="videoD" autoPlay="false" maintainAspectRatio="true" x="120" y="10"></mx:VideoDisplay>
+	
+	<mx:HBox horizontalGap="0" id="snaps" width="720" height="120" horizontalScrollPolicy="auto" y="0"></mx:HBox>
+</mx:Canvas>

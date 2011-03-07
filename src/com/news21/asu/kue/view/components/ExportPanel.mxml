@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="500" height="150">
+	<mx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			
+			public static const EVENT_CLOSE_POPUP:String = "Close_Popup";
+		]]>
+	</mx:Script>
+	<mx:Button label="Cancel" click="dispatchEvent(new Event(EVENT_CLOSE_POPUP, true))"  x="220.5" y="118"/>
+	
+</mx:TitleWindow>

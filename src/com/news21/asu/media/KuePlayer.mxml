@@ -1,0 +1,644 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:salamander="com.news21.asu.media.*" creationComplete="init()">
+	
+	<mx:Script>
+	<![CDATA[
+		import mx.controls.SWFLoader;
+	
+		//
+		//
+		//
+		
+		import mx.events.CuePointEvent;
+		import mx.utils.ObjectUtil;
+		import flash.utils.Timer;
+		import flash.events.TimerEvent;
+		import flash.xml.XMLDocument;
+		import com.news21.asu.util.XMLLoader;
+		import caurina.transitions.Tweener;
+		import flash.text.TextFormat;
+		
+		//
+		//
+		//
+		
+		private var myFormat:TextFormat;
+		
+		public var videos:Array = [
+						{'story':'help','video':'explainervid_final.flv','assets':'assets/stories/help/assets/'},
+						{'story':'dyk','video':'Intro_final.flv','assets':'assets/stories/dyk/assets/'},
+						{'story':'tpk','video':'Education_TPK_Final.flv','assets':'assets/stories/tpk/assets/'},
+						{'story':'carl','video':'CH_Final.flv','assets':'assets/stories/carl/assets/'},
+						{'story':'college','video':'Outro_final.flv','assets':'assets/stories/college/assets/'}
+					];
+		
+		public var currentVideo:int = 1;
+		
+		public var cuepointXML:String = "";
+		public var videoSrc:String = '';
+		public var assetURL:String = ''; //'/assets/education/';
+		private var currentAnnotation:Object;
+		
+		[Bindable][Embed(source="assets/images/image.png")] public var graphicicon:Class;
+		[Bindable][Embed(source="assets/images/html.png")] public var texticon:Class;
+		[Bindable][Embed(source="assets/images/pdf.jpg")] public var pdficon:Class;
+		[Bindable][Embed(source="assets/images/link.png")] public var linkicon:Class;
+		[Bindable][Embed(source="assets/images/film.png")] public var videoicon:Class;
+		
+		private var xmlLoader:XMLLoader;
+		
+		private var aDependencies:Array = [{'name':'xml','data':false},{'name':'video','data':true}];
+		private var bReady:Boolean = false;
+		private var playerMode:String = 'normal'; // fullscreen, normal, mini
+		private var bAnnotationsEnabled:Boolean = true;
+		
+		private var bAnnotationDirty:Boolean = false;
+		private var effectPauseForDuration:Boolean = false;
+		private var effectPause:Boolean = false;
+		private var effectMinify:Boolean = false;
+		
+		private var optionsWidth:Number = 35;
+		private var playerPadding:Number = 20;
+		
+		[Bindable] private var smallAnnotationWidth:Number = 140;
+		[Bindable] private var smallAnnotationHeight:Number = 230;
+		[Bindable] private var largeAnnotationWidth:Number = 640;
+		[Bindable] private var largeAnnotationHeight:Number = 360;
+		
+		[Bindable] public var playerWidth:Number = 720;
+		[Bindable] public var playerHeight:Number = 405;
+		[Bindable] public var playerMiniWidth:Number = 112;
+		[Bindable] public var playerMiniHeight:Number = 63;
+		
+		[Bindable] public var controlsWidth:Number = 720-(playerPadding*2); // 20 padding on each side
+		[Bindable] public var controlsHeight:Number = 35;
+		
+		[Bindable] public var sliderWidth:Number = controlsWidth-260;
+		
+		private var bExpanded:Boolean = false;
+		private var bLoaderDirty:Boolean = false;
+		
+		//
+		//
+		//
+		
+		public function init():void
+		{
+			myFormat = new TextFormat();
+			myFormat.font = "Verdana";
+			myFormat.size = 14;
+			
+			
+			loadNextVideo();
+			videoCanvas.mask = getChildByName('videoMask');
+			initOptions();
+		}	
+		
+		//
+		//
+		//
+			
+		public function loadCuePointXML(xmlUrl:String):void
+		{
+			xmlLoader = new XMLLoader(xmlUrl);
+            xmlLoader.addEventListener(XMLLoader.XML_LOADED, onXMLLoaded);
+            xmlLoader.load();			
+		}
+		
+		public function onXMLLoaded(e:Event):void 
+		{
+			//Remove XML Load Event Listener
+			xmlLoader.removeEventListener(XMLLoader.XML_LOADED, onXMLLoaded);
+			//Read XML Data
+			var cp:XML = xmlLoader.getXML();
+			parseXML4Kues(cp);
+		}
+		
+		public function parseXML4Kues(cp:XML):void 
+		{
+			var a:Array = new Array();
+			var o:Object;
+			var a2:Array = new Array();
+			var o2:Object;
+			
+			videoSource.cuePointManager.removeAllCuePoints();
+				
+			for (var i:int = 0; i < cp.CuePoint.length(); i++) {
+				o = new Object();
+				o.name = cp.CuePoint[i].Name;
+				o.time = Number(cp.CuePoint[i].Time);
+				o.type = cp.CuePoint[i].Type;
+				a2 = new Array();
+				//trace(ObjectUtil.toString(cp.CuePoint[i].Parameters.Parameter.length()));
+				for (var j:int = 0; j < cp.CuePoint[i].Parameters.Parameter.length(); j++) {
+					o2 = new Object();
+					o2.name = cp.CuePoint[i].Parameters.Parameter[j].Name;
+					o2.value = cp.CuePoint[i].Parameters.Parameter[j].Value;
+					a2.push(o2);
+				}
+				o.parameters = a2;
+				a.push(o);
+			}
+			videoSource.cuePoints = a;
+			aDependencies[0]['data'] = true;
+			//trace(aDependencies[0]['data']);
+			
+			checkLoadDependencies();
+		}
+		
+		//
+		//
+		//
+		
+		private function checkLoadDependencies():void
+		{
+			var bStart:Boolean = true;
+			for (var i:int = 0; i < aDependencies.length; i++) {
+				if(aDependencies[i]['data'] ==false)
+					bStart = false
+			}
+			if(bStart)
+				initVideoPlayer();
+		}
+			
+		public function loadVideoSource(src:String):void
+		{
+			videoSource.source = src;
+		}	
+		
+		private function initVideoPlayer():void
+		{
+			bReady = true;
+			videoSource.play();
+		}
+		
+		private function loadNextVideo():void
+		{
+			/*
+			cuepointXML = assetURL+'assets/stories/'+videos[currentVideo]['story']+'/cuepoints.xml';
+			videoSrc = assetURL+'assets/stories/'+videos[currentVideo]['story']+'/assets/'+videos[currentVideo]['video'];
+			
+			trace(cuepointXML)
+			trace(videoSrc)
+			
+			loadCuePointXML(cuepointXML);
+			loadVideoSource(videoSrc);
+			
+			hideControls();
+			*/
+		}
+		
+		private function changeVideo(vid:int):void
+		{
+			if(currentVideo != vid) {
+				hideAnnotation();
+				
+				trace('about load video '+vid);
+				bReady = false;
+				if(videoSource.playing)
+					videoSource.stop();
+				currentVideo = vid;
+				loadNextVideo();
+			}
+		}
+		
+		private function playNextVideo():void
+		{
+			trace('play next video');
+			if(currentVideo < 4) {
+				// play next video
+				var nv:int = currentVideo+1;
+				trace('change video to '+nv);
+				//changeVideo(nv);
+			}
+		}
+		
+		
+		//
+		//
+		//
+		
+		private function annotationTimerHandler(event:TimerEvent):void {
+			trace('timer timed out');
+			if(!bExpanded)
+				hideAnnotation();
+		}
+		
+		private function hideAnnotation():void
+		{
+			trace('hide annotation called');
+			
+			annotationIcon.visible = false;
+			
+			if(effectMinify){
+				normalVideo();
+				showOptions();
+			}
+				
+			if(effectPauseForDuration)
+				videoSource.play();
+			
+			resetAnnotationDefaults();
+        }
+		
+		private function expandAnnotation():void
+		{
+			if(effectPause)
+				videoSource.pause();
+				
+			if(effectMinify)
+				minifyVideo();
+			
+			var aparam:Object = new Object();
+			for(var j:* in currentAnnotation.parameters)
+			{
+				aparam[currentAnnotation.parameters[j].name] = currentAnnotation.parameters[j].value;
+			}
+			
+			
+			bExpanded = true;
+			
+			switch(String(aparam['asset_type']))
+			{
+				case "html":
+					var sa:Canvas = new Canvas();
+					sa.verticalScrollPolicy  = "auto";
+					sa.horizontalScrollPolicy = "off";
+					sa.name = 'annotation_expanded';
+					var nt:Text = new Text();
+					nt.htmlText = String(aparam['asset_body']);
+					nt.setStyle('fontSize',12);
+					nt.setStyle('color',0x000000);
+					if(effectMinify) {
+						annotationTitle.visible = false;
+						expand_btn.visible = false;
+						annotationIcon.visible = false;
+						trace('put text into background');
+						
+					} else {
+						Tweener.addTween(annotationBox,{time:0.4,width:largeAnnotationWidth,height:largeAnnotationHeight,transition:"linear"});
+						
+						nt.width = 450;
+						sa.addChild(nt);
+						sa.x = 160;
+						sa.y = 30;
+						sa.width = 470;
+						sa.height = 300;
+						annotationBox.addChild(sa);
+						trace('put text into big box');
+					}
+				break;
+				
+				case "image":
+					annotationTitle.visible = false;
+					annotationIcon.visible = false;
+					expand_btn.visible = false;
+					var ni:SWFLoader = new SWFLoader();
+					bLoaderDirty = true;
+					ni.name = 'annotation_expanded';
+					if(effectMinify) {
+						trace(videos[currentVideo]['assets'] + String(aparam['asset_file']));
+						ni.load( assetURL+videos[currentVideo]['assets'] + String(aparam['asset_file']) );
+						annotationBG.addChild(ni);
+						trace('put graphic into background');
+					} else {
+						trace(videos[currentVideo]['assets'] + String(aparam['asset_file']));
+						ni.load( assetURL+videos[currentVideo]['assets'] + String(aparam['asset_file']) );
+						annotationBox.addChildAt(ni,0);
+						Tweener.addTween(annotationBox,{time:0.4,width:largeAnnotationWidth,height:largeAnnotationHeight,transition:"linear"});
+						trace('put graphic into big box');
+					}
+				break;
+				
+				case "flash":	
+					annotationTitle.visible = false;
+					annotationIcon.visible = false;
+					expand_btn.visible = false;
+					var nf:SWFLoader = new SWFLoader();
+					bLoaderDirty = true;
+					nf.name = 'annotation_expanded';
+					if(effectMinify) {
+						trace(videos[currentVideo]['assets'] + String(aparam['asset_file']));
+						nf.load( assetURL+videos[currentVideo]['assets'] + String(aparam['asset_file']) );
+						annotationBG.addChild(ni);
+						trace('put flash into background');
+					} else {
+						trace(videos[currentVideo]['assets'] + String(aparam['asset_file']));
+						nf.load( assetURL+videos[currentVideo]['assets'] + String(aparam['asset_file']) );
+						annotationBox.addChildAt(nf,0);
+						Tweener.addTween(annotationBox,{time:0.4,width:largeAnnotationWidth,height:largeAnnotationHeight,transition:"linear"});
+						trace('put flash into big box');
+					}
+				break;
+				
+				case "link":
+					var u:URLRequest = new URLRequest(aparam['asset_link'].toString());
+		        	navigateToURL(u,"_blank");				
+				break;
+				
+				case "video":
+					annotationTitle.visible = false;
+					annotationIcon.visible = false;
+					expand_btn.visible = false;
+					var nv:VideoDisplay = new VideoDisplay();
+					bLoaderDirty = true;
+					if(effectMinify) {
+						nv.name = 'annotation_expanded';
+						nv.autoPlay = true;
+						nv.source = assetURL+videos[currentVideo]['assets'] + String(aparam['asset_file']);
+						annotationBG.addChild(nv);
+						
+						trace('put graphic into background');
+					} else {
+						nv.name = 'annotation_expanded';
+						nv.autoPlay = true;
+						nv.source = assetURL+videos[currentVideo]['assets'] + String(aparam['asset_file']);
+						nv.width = largeAnnotationWidth;
+						nv.height = largeAnnotationHeight;
+						Tweener.addTween(annotationBox,{time:0.4,width:largeAnnotationWidth,height:largeAnnotationHeight,transition:"linear"});
+						annotationBox.addChildAt(nv,0);
+						trace('put graphic into big box');
+					}
+				break;
+			}
+			
+			
+		}
+		
+		private function resetAnnotationDefaults():void
+		{
+			var aparam:Object = new Object();
+			if(currentAnnotation != null) {
+				for(var j:* in currentAnnotation.parameters)
+				{
+					aparam[currentAnnotation.parameters[j].name] = currentAnnotation.parameters[j].value;
+				}
+			}
+			if(annotationBox.getChildByName('annotation_expanded') != null) {
+				if(String(aparam['asset_type']) == 'video'){
+					var vdc:VideoDisplay = annotationBox.getChildByName('annotation_expanded') as VideoDisplay;
+					vdc.stop();
+				}
+				annotationBox.removeChild(annotationBox.getChildByName('annotation_expanded'));
+			}
+			
+			resetAnnotationBG(aparam);
+			
+			hideAnnotationBox();
+			
+			effectPauseForDuration = false;
+			effectMinify = false;
+			effectPause = false;
+		}
+		
+		public function showAnnotation(e:CuePointEvent):void
+		{
+			if(bAnnotationsEnabled)
+			{
+				var atype:String;
+				var aparam:Object = new Object();
+				var useTimer:Boolean = true;
+				var bAnnotation:Boolean = false;
+				//trace('announcement '+e.cuePointTime);
+				for(var i:int=0;i<videoSource.cuePoints.length;i++)
+				{
+					if(videoSource.cuePoints[i].time == e.cuePointTime)
+					{
+						//trace('cp match');
+						currentAnnotation = videoSource.cuePoints[i];
+						for(var j:* in currentAnnotation.parameters)
+						{
+							aparam[currentAnnotation.parameters[j].name] = currentAnnotation.parameters[j].value;
+						}
+						trace('aparam '+ObjectUtil.toString(aparam));
+						switch(String(aparam['asset_type']))
+						{
+							case "html":
+							bAnnotation = true;
+							annotationIcon.source = texticon;
+							annotationBox.styleName = 'textAnnotation';
+							break;
+							
+							case "flash":
+							bAnnotation = true;
+							annotationIcon.source = graphicicon;
+							annotationBox.styleName = 'graphicAnnotation';
+							break;
+							
+							case "image":
+							bAnnotation = true;
+							annotationIcon.source = graphicicon;
+							annotationBox.styleName = 'graphicAnnotation';
+							break;
+							
+							case "link":
+							bAnnotation = true;
+							var ltype:Array = aparam['asset_link'].toString().split('.');
+							if(ltype[ltype.length-1] != 'pdf'){
+								annotationIcon.source = linkicon;
+								annotationBox.styleName = 'linkAnnotation';
+							} else {
+								annotationIcon.source = pdficon;
+								annotationBox.styleName = 'pdfAnnotation';
+							}
+							
+							break;
+							
+							case "video":
+							bAnnotation = true;
+							annotationIcon.source = videoicon;
+							annotationBox.styleName = 'videoAnnotation';
+							break;
+						}
+						
+						if(bAnnotation) {
+							bExpanded = false;
+							annotationBox.visible = true;
+							annotationIcon.visible = true;
+							Tweener.addTween(annotationBox,{alpha:1,time:0.7,transition:"linear"});
+							
+							annotationTitle.htmlText = aparam['asset_title'];
+							
+							bAnnotationDirty = true;
+							if(aparam.hasOwnProperty('event_pause-video_pause')){
+								trace('pause video');
+								effectPause = true;
+								useTimer = true;
+							}
+							if(aparam.hasOwnProperty('event_pause-video-for-duration_pauseforduration')){
+								trace('pause4duration video');
+								effectPauseForDuration = true;
+								useTimer = true;
+							}
+							if(aparam.hasOwnProperty('event_minify-video_minify')){
+								trace('minify video');
+								effectMinify = true;
+								useTimer = true;
+							}
+						}
+						
+						if(useTimer)
+						{
+							var dint:int = int(Number(aparam['duration']))*1000;
+							trace('starting timer for '+dint);
+							var myTimer:Timer = new Timer(dint, 1);
+	            			myTimer.addEventListener("timer", annotationTimerHandler);
+				            myTimer.start();
+						}
+						
+						break;
+					}
+				}
+			}
+		}
+		
+		//
+		//
+		//
+		
+		private function minifyVideo():void
+		{
+			hideControls();
+			hideOptions();
+			playerMode = 'mini';
+			var newX:Number = playerWidth - playerMiniWidth;
+			var newY:Number = playerHeight - playerMiniHeight;
+			Tweener.addTween(videoSource,{alpha:.5,y:newY,x:newX,time:0.7,width:playerMiniWidth,height:playerMiniHeight,transition:"linear"});
+		}
+		
+		private function normalVideo():void
+		{
+			playerMode = 'normal';
+			Tweener.addTween(videoSource,{alpha:1,y:0,x:0,time:0.7,width:playerWidth,height:playerHeight,transition:"linear"});
+		}
+		
+		//
+		//
+		//
+		
+		private function showControls():void
+		{
+			if(bReady && playerMode != 'mini'){
+				var yPos:Number = playerHeight - controlsHeight - (playerPadding*.25);
+				Tweener.addTween(videoControls,{alpha:1,y:yPos,time:0.3,transition:"linear"});
+			}
+		}
+			
+		private function hideControls():void
+		{
+			if(bReady && playerMode != 'mini'){
+				var yPos:Number = playerHeight + controlsHeight +  (playerPadding*.25);
+				Tweener.addTween(videoControls,{alpha:0,y:yPos,time:0.3,transition:"linear"});
+			}
+		}
+		
+		//
+		//
+		//
+		
+		private function initOptions():void
+		{
+			videoOptions.x = playerWidth - (playerPadding+optionsWidth);
+			videoOptions.y = playerPadding; 
+		}
+		
+		private function showOptions():void
+		{
+			if(bReady && playerMode != 'mini'){
+				Tweener.addTween(annotations_btn,{alpha:1,time:0.3,transition:"linear"});
+				Tweener.addTween(embed_btn,{alpha:1,time:0.3,transition:"linear"});
+			}
+		}
+			
+		private function hideOptions():void
+		{
+			Tweener.addTween(annotations_btn,{alpha:0,time:0.3,transition:"linear"});
+			Tweener.addTween(embed_btn,{alpha:0,time:0.3,transition:"linear"});
+		}
+		
+		private function toogleAnnotationOption():void
+		{
+			if(bAnnotationsEnabled){
+				annotations_btn.setStyle("styleName", "annotationOffButton");
+				bAnnotationsEnabled = false;
+			} else {
+				annotations_btn.setStyle("styleName", "annotationButton");
+				bAnnotationsEnabled = true;
+			}
+		}
+		
+		//
+		//
+		//
+		
+		private function hideAnnotationBox():void
+		{
+			annotationBox.visible = false;
+			annotationBox.height = smallAnnotationHeight;
+			annotationBox.width = smallAnnotationWidth;
+			annotationIcon.visible = true;
+			annotationTitle.visible = true;
+			hide_btn.visible = true;
+			expand_btn.visible = true;
+			/*
+			Tweener.addTween(annotationBox,{alpha:0,time:0.3,height:smallAnnotationHeight,width:smallAnnotationWidth,transition:"linear"});
+			Tweener.addTween(annotationIcon,{alpha:0,time:0.3,transition:"linear"});
+			Tweener.addTween(annotationTitle,{alpha:0,time:0.3,transition:"linear"});
+			Tweener.addTween(hide_btn,{alpha:0,time:0.3,transition:"linear"});
+			Tweener.addTween(expand_btn,{alpha:0,time:0.3,transition:"linear"});
+			*/
+		}
+		
+		//
+		//
+		//
+		
+		private function resetAnnotationBG(aparam:Object):void
+		{
+			if(annotationBG.getChildByName('annotation_expanded') != null) {
+				if(String(aparam['asset_type']) == 'video'){
+					var vdc2:VideoDisplay = annotationBox.getChildByName('annotation_expanded') as VideoDisplay;
+					SoundMixer.stopAll();
+					vdc2.stop();
+				}
+			}
+			annotationBG.removeAllChildren();
+		}
+		
+		//
+		//
+		//
+		
+	]]>
+	</mx:Script>
+
+	<mx:Box id="annotationBG" styleName="annotationBackground" x="10" y="10" width="{playerWidth}" height="{playerHeight}"></mx:Box>
+	
+	<mx:Canvas id="videoMask" x="10" y="10" width="{playerWidth}" height="{playerHeight}" backgroundColor="red"></mx:Canvas>
+	
+	<mx:Canvas id="videoCanvas" x="10" y="10" rollOver="showControls();showOptions()" rollOut="hideControls();hideOptions()" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:VideoDisplay id="videoSource" cuePointManagerClass="mx.controls.videoClasses.CuePointManager" 
+			width="{playerWidth}" height="{playerHeight}" 
+			bufferTime="60"
+			autoBandWidthDetection="true"
+			maintainAspectRatio="true" 			 
+			volume="{videoControls.volumeSlider.value/100}"
+			autoPlay="false" cuePoint="showAnnotation(event)" 
+			autoRewind="true"  x="0" y="0" complete="playNextVideo()"/>
+		<salamander:VideoController id="videoControls" player="{videoSource}" showFullScreen="false" showVolumeControls="true" sliderWidth="{sliderWidth}" x="0" y="490" width="{controlsWidth}" height="{controlsHeight}" left="20"/>
+		
+		<mx:VBox id="videoOptions">
+			<mx:Button styleName="annotationButton" id="annotations_btn" useHandCursor="true" buttonMode="true" alpha="0" click="toogleAnnotationOption()" />
+			<mx:Button styleName="embedButton" id="embed_btn" useHandCursor="true" buttonMode="true" alpha="0" visible="false" />
+		</mx:VBox>
+		
+	</mx:Canvas>
+	
+	<mx:Canvas id="annotationBox" y="20" width="{smallAnnotationWidth}" height="{smallAnnotationHeight}" visible="false" alpha="0" x="20" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:Image id="annotationIcon" x="32" y="10" />
+		<mx:Text id="annotationTitle" x="8" y="92" width="130" height="110" fontSize="14" fontWeight="bold" />
+		<mx:Button id="hide_btn" x="8" bottom="10" useHandCursor="true" buttonMode="true" label="hide" click="hideAnnotation()" />
+		<mx:Button id="expand_btn" x="65" bottom="10" useHandCursor="true" buttonMode="true" label="explore" click="expandAnnotation()" />	
+	</mx:Canvas>
+	
+</mx:Canvas>
